@@ -1,0 +1,179 @@
+Option Strict Off
+Imports System
+Imports NXOpen
+Imports NXOpen.UF
+Imports NXOpen.Utilities
+Imports System.IO
+Imports Snap
+Imports Snap.NX
+'Imports System.Windows.Forms
+
+Module NXJournal
+    'enum Tool type
+    Enum ToolTypeEnum
+        Undefined = 0
+        Mill = 1
+        Drill = 2
+        Turn = 3
+        Groove = 4
+        Thread = 5
+        Wedm = 6
+        Barrel = 7
+        Tcutter = 8
+        Form = 9
+        DrillSpcGroove = 10
+        Solid = 11
+        MillForm = 12
+        Soft = 13
+    End Enum
+    'enum Tool Subtype
+    Enum ToolSubtypeEnum
+        Undefined = 0
+        Mill5 = 1
+        Mill7 = 2
+        Mill10 = 3
+        MillBall = 4
+        DrillStandard = 5
+        DrillCenterBell = 6
+        DrillCountersink = 7
+        DrillSpotFace = 8
+        DrillSpotDrill = 9
+        DrillBore = 10
+        DrillReam = 11
+        DrillCounterbore = 12
+        DrillTap = 13
+        DrillBurnishing = 14
+        DrillThreadMill = 15
+        DrillBackSpotFace = 16
+        DrillStep = 17
+        TurnStandard = 18
+        TurnButton = 19
+        TurnBoringBar = 20
+        GrooveStandard = 21
+        GrooveRing = 22
+        GrooveFullNoseRadius = 23
+        GrooveUserDefined = 24
+        ThreadStandard = 25
+        ThreadButress = 26
+        ThreadAcme = 27
+        ThreadTrapezoidal = 28
+        Generic = 29
+        Probe = 30
+        MillChamfer = 31
+        MillSpherical = 32
+        DrillCore = 33
+        Laser = 34
+    End Enum
+    Sub Main(ByVal args() As String)
+
+
+
+
+        Dim theSession As Session = Session.GetSession()
+        Dim theUFSession As UFSession = UFSession.GetUFSession()
+        Dim workPart As NXOpen.Part = theSession.Parts.Work
+        Dim theUI As UI = UI.GetUI()
+        Dim TempPath As String = Environment.GetEnvironmentVariable("TMP")
+        Dim UGRelease As String = Nothing
+        Dim UGFullRelease As String = Nothing
+
+
+        Dim excelFileName As String = Environ("userprofile") & "\Desktop\programação\Excel\teste.xlsx"
+        Dim lw As ListingWindow = theSession.ListingWindow
+
+
+        lw.Open()
+
+        Dim objExcel = CreateObject("Excel.Application")
+        objExcel.Visible = True
+        objExcel.DisplayAlerts = False
+        objExcel.Workbooks.Open(excelFileName)
+
+        Dim objBooks As Object = objExcel.Workbooks
+        Dim objSheets As Object = objExcel.Worksheets
+        On Error Resume Next
+        Dim objSheet As Object = objExcel.ActiveWorkbook.Sheets(1) ' set to the first sheet, change index as needed
+        On Error GoTo 0
+        If objSheet Is Nothing Then
+            objSheet = objExcel.ActiveWorkbook.Sheets.Add
+            objSheet.Name = "Sheet1"
+        End If
+        'title
+        objSheet.Name = "Ferramentas"
+        objSheet.Range("A1").Value = "ID"
+        objSheet.Range("B1").Value = "toolName"
+        objSheet.Range("C1").Value = "toolHolderName"
+        objSheet.Range("D1").Value = "toolNumber"
+        objSheet.Range("E1").Value = "toolNumber_2"
+        'Set ids of Table 
+        Dim j As Integer
+        For j = 1 To 40
+            objSheet.Range("A" & j + 1).Value = j
+        Next j
+
+        For i As Integer = 0 To theUI.SelectionManager.GetNumSelectedObjects() - 1
+            Dim theSelectedObject As TaggedObject = theUI.SelectionManager.GetSelectedTaggedObject(i)
+            Dim currentTool As NXOpen.CAM.Tool = CType(theSelectedObject, NXOpen.CAM.Tool)
+            Dim toolType As String
+            Dim toolSubtype As String
+
+
+            currentTool.GetTypeAndSubtype(toolType, toolSubtype)
+            'Get the string name of the tool type enumerator
+
+
+            'Dim toolTypeEnumName As String = toolType
+            Dim toolTypeEnumValue As ToolTypeEnum = toolType
+
+            'Get the string name of the tool subtype enumerator
+            Dim toolSubtypeEnumValue As ToolSubtypeEnum = toolSubtype
+
+            'value to Excel
+            Dim ToolBuilder As Object = CheckToolBuilder(toolTypeEnumValue, toolSubtypeEnumValue, currentTool, workPart)
+
+
+            If ToolBuilder Is Nothing Then
+                lw.WriteLine("Uma Ferramenta não esta cadastrada!!!")
+            Else
+                lw.WriteLine("kkkkkkkkkkkkkkkkkkk")
+                Dim toolName As String = Replace(currentTool.Name, "-", "")
+                Dim toolNumber As String = CStr(ToolBuilder.TlNumberBuilder.Value)
+                Dim toolNumber_2 As String = CStr(ToolBuilder.TlAdjRegBuilder.Value)
+                Dim toolNumber_3 As String = CStr(ToolBuilder.TlCutcomRegBuilder.Value)
+                Dim toolHolderName As String = ToolBuilder.HolderDescription
+                'Value set
+                objSheet.Range("B" & toolNumber + 1).Value = toolName
+                objSheet.Range("C" & toolNumber + 1).Value = toolHolderName
+                objSheet.Range("D" & toolNumber + 1).Value = toolNumber
+                objSheet.Range("E" & toolNumber + 1).Value = toolNumber_2
+                If toolNumber_3 <> 0 Then
+                    objSheet.Range("F" & toolNumber + 1).Value = toolNumber_3
+                End If
+
+            End If
+
+        Next
+
+        lw.Close()
+
+    End Sub
+
+
+
+    Function CheckToolBuilder(ByVal Number_ToolType As Integer, ByVal Number_toolSubtype As Integer, ByVal currentTool As NXOpen.CAM.Tool, ByVal workPart As NXOpen.Part) As Object
+        'MillToolBuilder
+        If Number_ToolType = 1 And Number_toolSubtype = 5 Then
+            Dim ToolBuilder As NXOpen.CAM.MillToolBuilder = Nothing
+            ToolBuilder = workPart.CAMSetup.CAMGroupCollection.CreateMillToolBuilder(currentTool)
+            Return ToolBuilder
+        End If
+        'DrillStdToolBuilder
+        If Number_ToolType = 0 And Number_toolSubtype = 4 Then
+            Dim ToolBuilder As NXOpen.CAM.DrillStdToolBuilder = Nothing
+            ToolBuilder = workPart.CAMSetup.CAMGroupCollection.CreateDrillStdToolBuilder(currentTool)
+            Return ToolBuilder
+        End If
+        Return Nothing
+
+    End Function
+End Module
