@@ -1,0 +1,91 @@
+' NX 2306
+' Journal created by Luiz on Tue Nov 14 14:55:02 2023 E. South America Standard Time
+'
+Imports System
+Imports NXOpen
+
+Module NXJournal
+Sub Main (ByVal args() As String) 
+
+Dim theSession As NXOpen.Session = NXOpen.Session.GetSession()
+Dim workPart As NXOpen.Part = theSession.Parts.Work
+ Dim theUI As UI = UI.GetUI()
+Dim displayPart As NXOpen.Part = theSession.Parts.Display
+
+Dim markId1 As NXOpen.Session.UndoMarkId = Nothing
+markId1 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Start")
+
+Dim kinematicConfigurator1 As NXOpen.SIM.KinematicConfigurator = Nothing
+kinematicConfigurator1 = workPart.KinematicConfigurator
+
+Dim kinematicComponent1 As NXOpen.SIM.KinematicComponent = Nothing
+kinematicComponent1 = kinematicConfigurator1.ComponentCollection.FindObject("SETUP")
+
+Dim kinematicComponent2 As NXOpen.SIM.KinematicComponent = Nothing
+kinematicComponent2 = kinematicConfigurator1.ComponentCollection.FindObject("PART")
+
+Dim kinematicComponentBuilder1 As NXOpen.SIM.KinematicComponentBuilder = Nothing
+kinematicComponentBuilder1 = kinematicConfigurator1.ComponentCollection.CreateComponentBuilder(kinematicComponent1, kinematicComponent2)
+
+Dim kinematicJunctionBuilderList1 As NXOpen.SIM.KinematicJunctionBuilderList = Nothing
+kinematicJunctionBuilderList1 = kinematicComponentBuilder1.JunctionList
+
+theSession.SetUndoMarkName(markId1, "Edit Machine Component Dialog")
+
+Dim kinematicComponent3 As NXOpen.SIM.KinematicComponent = Nothing
+kinematicComponent3 = kinematicConfigurator1.ComponentCollection.FindObject("PART")
+
+Dim nullNXOpen_SIM_KinematicJunction As NXOpen.SIM.KinematicJunction = Nothing
+
+Dim kinematicJunctionBuilder1 As NXOpen.SIM.KinematicJunctionBuilder = Nothing
+kinematicJunctionBuilder1 = kinematicConfigurator1.CreateJunctionBuilder(kinematicComponent3, nullNXOpen_SIM_KinematicJunction)
+
+kinematicJunctionBuilder1.Name = "PART_JCT"
+
+kinematicJunctionBuilder1.Classification = NXOpen.SIM.KinematicJunctionBuilder.SystemClass.None
+
+Dim nullNXOpen_CartesianCoordinateSystem As NXOpen.CartesianCoordinateSystem = Nothing
+
+kinematicJunctionBuilder1.Csys = nullNXOpen_CartesianCoordinateSystem
+
+kinematicJunctionBuilderList1.Append(kinematicJunctionBuilder1)
+
+' ----------------------------------------------
+'   Dialog Begin Edit Machine Component
+' ----------------------------------------------
+    Dim type_n As String
+    For i As Integer = 1 To theUI.SelectionManager.GetNumSelectedObjects()-1
+
+
+            type_n = theUI.SelectionManager.GetSelectedTaggedObject(i).GetType().Name
+            If type_n = "Body" Or type_n = "Face" Or type_n = "Component" Then
+                Dim geometry As NXObject = theUI.SelectionManager.GetSelectedTaggedObject(i)
+                kinematicComponentBuilder1.AddGeometry(geometry)
+            End If
+
+        Next
+
+
+Dim markId2 As NXOpen.Session.UndoMarkId = Nothing
+markId2 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "Edit Machine Component")
+
+theSession.DeleteUndoMark(markId2, Nothing)
+
+Dim markId3 As NXOpen.Session.UndoMarkId = Nothing
+markId3 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "Edit Machine Component")
+
+Dim nXObject1 As NXOpen.NXObject = Nothing
+nXObject1 = kinematicComponentBuilder1.Commit()
+
+theSession.DeleteUndoMark(markId3, Nothing)
+
+theSession.SetUndoMarkName(markId1, "Edit Machine Component")
+
+kinematicComponentBuilder1.Destroy()
+
+' ----------------------------------------------
+'   Menu: Tools->Automation->Journal->Stop Recording
+' ----------------------------------------------
+
+End Sub
+End Module
